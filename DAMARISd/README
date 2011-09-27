@@ -1,0 +1,120 @@
+
+
+Allgemein:
+==========
+
+Der Datenlogger damarisd.py ist ein Daemon welcher im Hintergrund die Daten 
+verschiedener Geräte liest und regelmässig speichert. Dabei werden die Daten
+in einer HDF5 Datei gespeichert. Die Speicherung der Daten wurde mit Millionen
+von Werten von mehreren (simulierten) Geräten getestet und selbst bei einer 
+Dateigrösse von über 1 GByte funktionert die Datenaufnahme noch.
+
+
+Daemon:
+=======
+
+Der Daemon wird foglendermassen gestartet:
+
+# python damarisd.py
+
+Dabei geht er selbständig in den Hintergrund, seine PID (Prozess ID) wird in
+damarisd.pid gespeichert. Damit kann der Daemon mit dem Befehl:
+
+# kill $( cat damarisd.pid ) 
+
+beendet werden.
+
+
+Konfiguration:
+==============
+
+Die Konfigurationsdatei des Daemons ist damarsd.config, die Log Datei ist damarisd.log.
+
+Um ein neues Gerät einzubinden genügt es eine neue Sektion [gerätename] in der
+Konfigurationsdatei zu erzeugen.
+
+Jetzt kommt es darauf an wie man das Gerät ausliest, es gibt zwei Möglichkeiten:
+
+	1. Ein Programm das von der Shell aufgerufen wird. Es sollte nur einer oder
+	   mehrere Werte in einer Zeile ausgegeben werden. Diese Zeile wird vom
+	   Daemon gelesen und dann gepseichert.
+	   
+	2. Ein Pythonmodul welches die Daten an den Server mittels dem Standardmodul
+	   xmlrpclib überträgt.
+
+Fall 1.:
+	In der Sektion benötigt man:
+	a) command = 'Kommando um das Programm auszuführen'
+	b) rate = Integerwert der die Wartezeit angibt (also eigentlich 1/rate :-) )
+
+Fall 2.:
+	Ungleich komplizierter: Siehe example_module
+	a) module = example_module
+	   Name des moduls, muss im gleichen Verzeichnis wie damarisd.py sein
+	   ( oder in der PYTHON_PATH Shellvariablen )
+	b) args = ['any arguments','some more']
+	   Beliebige Argumente die das Modul evtl. braucht 
+
+
+Der Nachteil der Methode 1 ist dass man jedesmal ein Programm starten muss und
+somit jedesmal die Verbindung zum Gerät wieder aufgebaut werden muss -> niedrige
+Leseraten.
+
+
+Falls man z.B. schreibend auf die Geräte zugreifen will (um z.B. die Temperatur
+zu setzen) sollte natürlich der lesende Zugriff verhindert werden. Dazu wurden
+dem Server die Direktiven server.block_client(gerätename) und
+server.unblock_client(gerätename) hinzugefügt.
+
+Eine Verbindung kann mit dem Server unter Python folgendermassen hergestellt 
+werden (zum Testen am besten mit ipython):
+
+
+python> import xmlrpclib,cPickle,time
+python> server = xmlrpclib.Server('http://localhost:8001')
+python> server.block_client('gerätename') # Client geblockt
+python> server.unblock_client('gerätename') # Client liest wieder Daten
+
+# Daten lesen, zwischen start_time und end_time (jeweils Epochen, 
+# z.B. durch time.time() )
+python> res = cPickle.loads(server.get_data('gerätename', start_time, end_time))
+python>
+python>
+
+
+Viewer:
+=======
+Der Viewer erzeugt für jedes Gerät automatisch einen Button und plottet den zu- gehörigen Datenverlauf (NICHT ausgiebig getestet).
+
+Starten mit:
+
+# python viewer.py
+
+
+Server Befehlsreferenz:
+=======================
+
+		server.put_data(device, record_time, data)
+		server.get_data(device, start_time, stop_time)
+		server.put_external_data(device, command)
+		server.unblock_client(device)
+		server.block_client(device)
+		server.occupied(device)
+		server.quit()
+		server.quit_client(device)
+		server.status()
+		server.register_client(client)
+		server.unregister_client(client)
+		server.quit_device(device)
+		server.server_run()
+
+
+
+Todo:
+=====
+DAMARIS Einbindung
+
+DAMARIS Einbindung
+==================
+
+Beispiel für die einbindung an DAMARS
