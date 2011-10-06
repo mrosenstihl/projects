@@ -78,11 +78,14 @@ def tricube(x,x0):
 
 def bootstrap(xs,ys,window,robust_iterations=1, resampling=False, num=500):
     results = []
-    for i in xrange(num):
+    i = 0
+    while i < num:
         index = N.random.randint(0,len(ys)-1,len(ys))
         x,y = xs[index],ys[index]
         y_loess  = lowess(x,y, window,robust_iterations)
-        results.append(y_loess[x.argsort()])
+        if not N.any(N.isnan(y_loess)):
+            results.append(y_loess[x.argsort()])
+            i += 1
     results = N.array(results)
     return results
 
