@@ -1,6 +1,4 @@
 import numpy as N
-import numpy.polynomial.polynomial as Poly
-#import scipy.odr as O
 import csv
 import sys, os
 from PyQt4.QtCore import *
@@ -151,55 +149,6 @@ def lowess(x, y, f=2./3., iter=1):
     return yest 
 
 
-def mrlowess(xs,ys,window,robust_iterations=1):
-    """
-    window in same units of x, i.e. years
-    """
-    # sort the data
-    #print x,y
-    tmp = xs[:]
-    data = N.zeros(len(xs))
-    orig_index = tmp.argsort()
-    x = xs[orig_index]
-    y = ys[orig_index]
-#   print xs is x
-    for i,x_val in enumerate(x):
-        ind = (x>=x_val-window/2.)&(x<=x_val+window/2.)
-        x_selected = x[ind] 
-        y_selected = y[ind]
-        n = len(x_selected)
-        if len(set(x_selected)) > 1:
-            delta = N.ones( n )
-            weights = tricube(x_selected, x_val)
-            #print weights
-
-            for j in xrange(robust_iterations):
-        #       print x_selected,y_selected
-                weights *= delta
-                #weights /= weights.sum()
-                
-                #print x_selected, y_selected
-                #beta = Poly.polyfit(x_selected,y_selected,1, w=weights)
-                dat = O.Data(x_selected,y_selected,we = weights)
-                mod = O.Model(model)
-                odr = O.ODR(dat,mod,[1,1],ifixx=(0,))
-                odr.run()
-                beta = odr.output.beta
-                res = y_selected - Poly.polyval([x_val],beta)
-                delta = B(res)
-                
-                if i == 2000:
-                    print x_val
-                    print x_selected
-                    print y_selected
-                    print "delta",delta
-                    print weights
-            y_loess = Poly.polyval([x_val],beta)
-        else:
-            y_loess = list(y_selected)[0]
-        data[i] = y_loess
-    return data[orig_index]
-
 class AppForm(QMainWindow):
     def __init__(self, parent=None):
         QMainWindow.__init__(self, parent)
@@ -239,13 +188,12 @@ class AppForm(QMainWindow):
          
 
     def load_data(self):
-        
         path = unicode(QFileDialog.getOpenFileName(self, 
                         'Load file',filter="Data files (*.txt *.csv *.dat)"))
         if path:
             self.set_x_column.clear()
             self.set_y_column.clear()
-            f = open(path)
+            f = open(path, 'U')
             # read the first non empty line, assuming it is the header line
             line = f.readline()
             while line == "":
