@@ -28,3 +28,9 @@ Fitting
 not yet implemented
 
 .. [1] Currently only signal amplitudes are implemented.
+
+
+Miscalleanus
+------------
+
+Icons from: fatcow http://www.fatcow.com Creative Commons Attribution-Noncommercial 3.0 Unported License
