@@ -6,23 +6,30 @@ OPT=-O3 -mtune=core2
 DEBUG=-O0
 OPENMP=-fopenmp
 GCC=/opt/local/bin/gcc-mp-4.6 
-all: rw zigtest
-rw:
-	$(GCC) $(STDFLAGS) $(CFLAGS) $(OPT) $(LDFLAGS) $(OPENMP) main.c dSFMT-src-2.1/dSFMT.c ziggurat.c -o rw
-rw0mq:
-	$(GCC) $(STDFLAGS) $(CFLAGS) $(OPT) $(LDFLAGS) $(OPENMP) zmq_main.c  -lzmq dSFMT-src-2.1/dSFMT.c ziggurat.c -o rw0mqs
-	$(GCC) $(STDFLAGS) $(CFLAGS) $(OPT) $(LDFLAGS) $(OPENMP) zmq_worker.c  -lzmq dSFMT-src-2.1/dSFMT.c ziggurat.c -o rw0mqw
+all: rw
+rw:	main.o ziggurat.o dSFMT.o
+	$(GCC) $(OPENMP) main.o dSFMT.o ziggurat.o -o rw
+main.o:	main.c
+	$(GCC) $(STDFLAGS) $(CFLAGS) $(OPT) $(LDFLAGS) $(OPENMP) -c main.c
+ziggurat.o:	ziggurat/ziggurat.c
+	$(GCC) $(STDFLAGS) $(CFLAGS) $(OPT) $(LDFLAGS) $(OPENMP) -c  ziggurat/ziggurat.c
+
+dSFMT.o:	dSFMT-src-2.1/dSFMT.c
+	$(GCC) $(STDFLAGS) $(CFLAGS) $(OPT) $(LDFLAGS) $(OPENMP) -c dSFMT-src-2.1/dSFMT.c
 debug:
-	$(GCC) $(STDFLAGS) $(CFLAGS) $(DEBUG) $(LDFLAGS) $(OPENMP) main.c dSFMT-src-2.1/dSFMT.c ziggurat.c -o rw
+	$(GCC) $(STDFLAGS) $(CFLAGS) $(DEBUG) $(LDFLAGS) $(OPENMP) main.c dSFMT-src-2.1/dSFMT.c ziggurat/ziggurat.c -o rw
 
 zigtest:
-	$(GCC) $(STDFLAGS) $(CFLAGS) $(OPT) $(LDFLAGS) zigtest.c ziggurat.c  -lm  -o zigtest
+	$(GCC) $(STDFLAGS) $(CFLAGS) $(OPT) $(LDFLAGS) ziggurat/zigtest.c ziggurat/ziggurat.c  -lm  -o ziggurat/zigtest
 clean:
-	rm zigtest rw
+	rm rw *.o
 check:
 	OMP_NUM_THREADS=1 ./rw 262144 1024 512 64 |grep MAG
 	mv binout.omp binout.ref
 	OMP_NUM_THREADS=2 ./rw 262144 1024 512 64 |grep MAG
 	diff binout.ref binout.omp
 	rm binout.*
+rw0mq:
+	$(GCC) $(STDFLAGS) $(CFLAGS) $(OPT) $(LDFLAGS) $(OPENMP) zmq_main.c  -lzmq dSFMT-src-2.1/dSFMT.c ziggurat/ziggurat.c -o rw0mqs
+	$(GCC) $(STDFLAGS) $(CFLAGS) $(OPT) $(LDFLAGS) $(OPENMP) zmq_worker.c  -lzmq dSFMT-src-2.1/dSFMT.c ziggurat/ziggurat.c -o rw0mqw
 	

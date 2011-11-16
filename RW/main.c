@@ -11,19 +11,19 @@
 
 #include "main.h"
 #include "dSFMT-src-2.1/dSFMT.h"
-#include "ziggurat.h"
+#include "ziggurat/ziggurat.h"
 
 //#define STATS
-#define MULTIPLIER 1000000  // seperates the coordiantes (poor man's hash)
+#define MULTIPLIER 1000//000  // seperates the coordiantes (poor man's hash)
 
 
 
 
 int main (int argc, char * argv[]) {
 	int num_particles = 1024*1024;
-	int num_defects = 1024*32;
+	int num_defects = 1024*16;
 	int box_size = 512;
-	long long nsteps = 15;
+	long long nsteps = 110;
 	double start,stop;
 	
 	//omp_init_lock(&omplock);
@@ -60,7 +60,7 @@ int main (int argc, char * argv[]) {
 	dsfmt_init_gen_rand(&dsfmt, seed);
 	
 	// check if we can create the hashes
-	assert(box_size < MULTIPLIER);
+	//assert(box_size < MULTIPLIER);
 	assert(num_defects < pow(box_size,3));
 	
 #ifdef STATS
@@ -85,7 +85,6 @@ int main (int argc, char * argv[]) {
 	printf("# Defects: %i (Density: %.2e)\n", num_defects, (float) num_defects/pow(box_size,3) );
 	printf("# Steps: %lli\n", nsteps);
 	printf("#---------------------------------------------------\n");
-	printf("\n# Starting ...\n");
 	
 	// distribute particles from 0 to +box_size
 	for (int j = 0; j < 3; j++) {
@@ -116,10 +115,71 @@ int main (int argc, char * argv[]) {
 	
 	qsort(hash_list, num_defects, sizeof(int64_t), int64_cmp);
 	
+	/* lookup table maybe even faster */
+	// nope, too big if MULTIPLIER > 1000
+	// needs 500 MB for MULTIPLIER = 1000
+	/*
+	int64_t hash_min = hash_list[0];
+	int64_t hash_max = hash_list[num_defects - 1];
+	int64_t span = hash_max - hash_min;
+	printf("Span: %lli\n",span);
+	char *defekt_ltb = malloc(  span );
+	assert (defekt_ltb != NULL);
+	// initialize array
+	for (int64_t i = 0; i < span; i++) {
+		defekt_ltb[i] = 0;
+	}
+	
+	// set the defects in the lookup table
+	for (int64_t i = 0; i < num_defects; i++) {
+		defekt_ltb[ hash_list[i] - hash_min] = 1;
+	}
+	*/
+	
+	/* another idea: create lookup table for x -> lookup table for y -> lookup table for z */
+	int mem_size_table = 0;	
+	char ***x_lookup = malloc(box_size * sizeof(char**));
+	mem_size_table += box_size * sizeof(char**);
+	// initialize the arrays
+	for (int i = 0; i < box_size; i++) {
+		x_lookup[i]=NULL;
+	}
+	
+	// point the x coordinates of the defects to the corresponding y lookuptable
+	for (int i = 0; i < num_defects; i++) {
+		int x_index = defects[i][0];
+		int y_index = defects[i][1];
+		int z_index = defects[i][2];
+		if (x_lookup[x_index] == NULL) {
+			x_lookup[x_index] = malloc(box_size * sizeof(char*)); // malloc y_lookup pointers
+			mem_size_table += box_size * sizeof(char*);
+			for (int i = 0; i < box_size; i++) x_lookup[x_index][i]=NULL; // initialize the y_lookup pointers to NULL pointer
+		}
+		
+		if (x_lookup[x_index][y_index] == NULL) { // check if z_lookup table exists
+			x_lookup[x_index][y_index] = malloc(box_size * sizeof(char)); // set z_lookup
+			for (int i = 0; i < box_size; i++) x_lookup[x_index][y_index][i]=0; // initialize the z_lookup
+			mem_size_table += box_size * sizeof(char);
+
+		}
+		x_lookup[x_index][y_index][z_index] = 1;
+	}
+	
+	printf("lookup table size: %.1f MB\n",  mem_size_table/((float) (1024*1024)));
+	// check if the lookup table is correct
+	for (int i = 0; i < num_defects; i++) {
+		int x = defects[i][0];
+		int y = defects[i][1];
+		int z = defects[i][2];
+		//printf("Test: %i\n",x_lookup[x][y][z]);
+		assert(x_lookup[x][y][z] == 1);
+	}
+	
 	
 	// main loop
 	int main_loop_break = 0;
-	for (int step = 0; step < nsteps && main_loop_break ==0; step++) {
+	printf("\n# Starting ...\n");
+	for (int step = 0; step < nsteps && main_loop_break == 0; step++) {
 		start = 0; //omp_get_wtime();
 		int magnetization = 0;
 		// create random numbers for the movements (directions 1..6)
@@ -135,7 +195,7 @@ int main (int argc, char * argv[]) {
 			}
 #pragma omp section
 			{
-				// rdistribution of correlation times, rexp,rnor are NOT thread safe!
+				// distribution of correlation times, rexp,rnor are NOT thread safe!
 				for (int i=0 ;i < num_particles; i++) {
 					correlation_times[i] = (int) rexp()*30;
 				}
@@ -171,8 +231,10 @@ int main (int argc, char * argv[]) {
 				check_pbc(particle, box_size);
 				
 				int tc = correlation_times[i];
-				check_defect(particle, tc , hash_list, num_defects);
-//				ref_check_defect(particle, defects, num_defects);
+				// check_defect(particle, tc , hash_list, num_defects);
+				// check_defect_tlb(particle, tc, hash_min, span, defekt_ltb);
+				check_defect_3d(particle, x_lookup, tc);
+				//				ref_check_defect(particle, defects, num_defects);
 				
 			}
 			else { // particle is trapped, decrease the residual waiting time
@@ -264,24 +326,24 @@ int cstring_cmp(const void *a, const void *b)
 
 /* asm long long comparison function */ 
 /*
-int asm64_comp(const void *a, const void *b) {
-	int i=0;
-	__asm__(
-"mov (%%rdi), %%rdx\n\t"    // Subtract low word 
-"sub (%%rsi), %%rdx\n\t" 
-"mov 8(%%rdi), %%rdi\n\t"    // Subtract high word 
-"sbb 8(%%rsi), %%rdi\n\t" 
-"sbb %%eax, %%eax\n\t"    // %eax = -1 if below, zero otherwise 
-"or %%rdx, %%rdi\n\t"    // %rdi is non-zero if comparison is non-zero 
-"neg %%rdi\n\t"    // carry flag is 1 if comparison is non-zero 
-"adc %%eax, %%eax\n\t" // Result in %eax 
-"movl %%eax, %0\n\t"
-		: "=a" (i)
-			:"r" (a), "r" (b)
-	);
-	return i;
-}
-*/
+ int asm64_comp(const void *a, const void *b) {
+ int i=0;
+ __asm__(
+ "mov (%%rdi), %%rdx\n\t"    // Subtract low word 
+ "sub (%%rsi), %%rdx\n\t" 
+ "mov 8(%%rdi), %%rdi\n\t"    // Subtract high word 
+ "sbb 8(%%rsi), %%rdi\n\t" 
+ "sbb %%eax, %%eax\n\t"    // %eax = -1 if below, zero otherwise 
+ "or %%rdx, %%rdi\n\t"    // %rdi is non-zero if comparison is non-zero 
+ "neg %%rdi\n\t"    // carry flag is 1 if comparison is non-zero 
+ "adc %%eax, %%eax\n\t" // Result in %eax 
+ "movl %%eax, %0\n\t"
+ : "=a" (i)
+ :"r" (a), "r" (b)
+ );
+ return i;
+ }
+ */
 
 
 int int64_cmp(const void *a, const void *b) 
@@ -388,7 +450,7 @@ void check_pbc(int* particle, int box_size) {
 		particle[i] = particle[i] % box_size + (particle[i]<0?box_size:0);		
 	}
 }
-
+/* binary search */
 void check_defect(int* particle, int correlation_time, int64_t* hash_list, int num_defects ){
 	int64_t hash_val;
 	hash_val = hash(particle[0],particle[1],particle[2]);
@@ -398,30 +460,61 @@ void check_defect(int* particle, int correlation_time, int64_t* hash_list, int n
 		particle[3] = correlation_time;
 }
 
-/*
-void check_defect(int* particle, int correlation_time, int64_t* hash_list, int num_defects ){
-	int64_t hash_val;
+/* lookup table */
+
+void check_defect_tlb(int* particle, int correlation_time, int64_t hash_list_min, int64_t span, char* defekt_ltb){
+	int64_t hash_val, offset;
 	hash_val = hash(particle[0],particle[1],particle[2]);
-	
-	
-	int bsearch = 0;
-	int left = 0;
-	int right = num_defects-1;
-	
-	while (bsearch == 0 && left <= right) {
-		int middle = (left + right) / 2;
-		if (hash_val == hash_list[middle]) {
-			bsearch = 1;
+	offset = hash_val -  hash_list_min;
+	//printf("Offset: %lli\n", offset);
+	if ((offset >= 0) && (offset < span)) {
+		if (defekt_ltb[ offset ] == 1)
 			particle[3] = correlation_time;
-		} 
-		else {
-			if (hash_val < hash_list[middle]) right = middle - 1;
-			if (hash_val > hash_list[middle]) left = middle + 1;
+	}
+}
+
+
+/* lookup table */
+
+void check_defect_3d(int* particle, char*** lookup, int correlation_time){
+	int x = particle[0];
+	int y = particle[1];
+	int z = particle[2];
+	if (lookup[x] != NULL) {
+		if (lookup[x][y] != NULL) {
+			if (lookup[x][y][z] == 1)
+				particle[3] = correlation_time;
 		}
 	}
 }
 
-*/
+/*
+ void check_defect(int* particle, int correlation_time, int64_t* hash_list, int num_defects ){
+ int64_t hash_val;
+ hash_val = hash(particle[0],particle[1],particle[2]);
+ 
+ 
+ int bsearch = 0;
+ int left = 0;
+ int right = num_defects-1;
+ 
+ while (bsearch == 0 && left <= right) {
+ // int middle = (left + right) / 2;
+ // better: avoid integer overflow
+ int middle = left + (right-left) / 2;
+ 
+ if (hash_val == hash_list[middle]) {
+ bsearch = 1;
+ particle[3] = correlation_time;
+ } 
+ else {
+ if (hash_val < hash_list[middle]) right = middle - 1;
+ if (hash_val > hash_list[middle]) left = middle + 1;
+ }
+ }
+ }
+ 
+ */
 
 // REFERENZ IMPLEMENTIERUNG
 void ref_check_defect(int* particle, int** defect_coords, int num_defects){

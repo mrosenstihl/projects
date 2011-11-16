@@ -29,6 +29,7 @@ void check_pbc(int* particle, int box_size);
 void ref_check_defect(int* particle, int** defect_coords, int num_defects);
 
 void check_defect(int* particle, int correlation_time, int64_t* hash_list, int num_defects );
-
+void check_defect_tlb(int* particle, int correlation_time, int64_t hash_list_min, int64_t span, char* defekt_ltb);
+void check_defect_3d(int* particle, char*** lookup, int correlation_time);
 char** malloc2D_char(long nrows, long ncolumns);
 
