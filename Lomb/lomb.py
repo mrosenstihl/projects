@@ -148,7 +148,7 @@ if options.debug:
 	print "Over-sampling factor: %i"%ofac
 	print "Highest frequency (in nyquist freq.): %.2f\n"%hifac
 	x = data[:,0]
-	y = data[:,1]
+	y = data[:,2]
 
 #	Normal FFT with unevely spaced data
 	fty = FT.rfft(y)
@@ -164,7 +164,7 @@ if options.debug:
 if not options.debug:
 	print "Reading data from '%s'..."%(options.infilename),
 	try:
-		data = N.loadtxt(options.infilename)
+		data = N.loadtxt(options.infilename, delimiter=',')
 		print "done"
 	except IOError:
 		raise IOError, "Inout file not found: %s"%(options.infilename)
@@ -176,7 +176,7 @@ if not options.debug:
 	print "Over-sampling factor: %i"%ofac
 	print "Highest frequency (in nyquist freq.): %.2f\n"%hifac
 	x = data[:,0]
-	y = data[:,1]
+	y = data[:,2]
 
 # number of different frequencies nout
 nout = int(ofac*hifac*len(x)/2.0)

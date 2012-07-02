@@ -11,20 +11,16 @@
 
 #include "main.h"
 #include "dSFMT-src-2.1/dSFMT.h"
-#include "ziggurat/ziggurat.h"
+//#include "ziggurat/ziggurat.h"
 
 //#define STATS
-#define MULTIPLIER 1000//000  // seperates the coordiantes (poor man's hash)
-
-
-
+#define MULTIPLIER 1000000  // seperates the coordiantes (poor man's hash) 
 
 int main (int argc, char * argv[]) {
-	int num_particles = 1024*1024;
-	int num_defects = 1024*16;
-	int box_size = 512;
-	long long nsteps = 110;
-	double start,stop;
+	int num_particles = DSFMT_N64*4;
+	int num_defects = 1024*4;
+	int box_size = 128;
+	long long nsteps = 1024*1024*2;
 	
 	//omp_init_lock(&omplock);
 	//omp_set_num_threads(1);
@@ -40,21 +36,29 @@ int main (int argc, char * argv[]) {
 		
 	}
 	
+	// Information:
+	printf("#-------------------- Paramters --------------------\n");
+	printf("# Particles: %i\n", num_particles);
+	printf("# Box size: %i\n", box_size);
+	printf("# Defects: %i (Density: %.2e)\n", num_defects, (float) num_defects/pow(box_size,3) );
+	printf("# Steps: %lli\n", nsteps);
+	printf("#---------------------------------------------------\n");
 	
-	zigset(1);
+	assert( (box_size & (box_size - 1)) == 0 ); // check if box_size is power of two
+	//zigset(1);
 	dsfmt_t dsfmt;
 	
-	int seed = 0;
-	int  *mags = malloc(nsteps * sizeof(int)); // magnetization per step
-	int  *correlation_times = malloc(num_particles * sizeof(int)); // random distribution of correlation times
+	int seed = 1;
 	
+	// int num_random  = (num_particles < 1024) ? 1024: num_particles;
+	// int  *correlation_times = malloc(num_particles * sizeof(int)); // random distribution of correlation times
+	// char *directions = malloc(nsteps*sizeof(char)); // directions
 	int **particles = malloc2D_i(num_particles, 4); // 2d array for particles: x,y,z,mag
 	int **defects = malloc2D_i(num_defects, 3); // 2d array for defect coordinates
 	
 	//int *particle;
 	//int direction;
 	
-	double *random_numbers = malloc(num_particles * sizeof(double));
 	
 	// init random number generator
 	dsfmt_init_gen_rand(&dsfmt, seed);
@@ -78,22 +82,11 @@ int main (int argc, char * argv[]) {
 #endif
 	
 	// Start simulation
-	// Information:
-	printf("#-------------------- Paramters --------------------\n");
-	printf("# Particles: %i\n", num_particles);
-	printf("# Box size: %i\n", box_size);
-	printf("# Defects: %i (Density: %.2e)\n", num_defects, (float) num_defects/pow(box_size,3) );
-	printf("# Steps: %lli\n", nsteps);
-	printf("#---------------------------------------------------\n");
 	
 	// distribute particles from 0 to +box_size
 	for (int j = 0; j < 3; j++) {
-		// create random numbers for the positions
-		dsfmt_fill_array_open_close(&dsfmt, random_numbers, num_particles);
-		// scale to boxsize
 		for (int i=0 ;i < num_particles; i++) {
-			random_numbers[i] *= box_size;
-			particles[i][j] = (int) random_numbers[i];
+			particles[i][j] = (int) (dsfmt_genrand_close_open(&dsfmt)*box_size);
 		}
 	}
 	
@@ -101,188 +94,151 @@ int main (int argc, char * argv[]) {
 	// distribute defects from 0 to +box_size
 	for (int j = 0; j < 3; j++) {
 		for (int i=0 ; i < num_defects; i++) {
-			int val = (int) (dsfmt_genrand_open_close(&dsfmt)*box_size);
+			int val = (int) (dsfmt_genrand_close_open(&dsfmt)*box_size);
 			defects[i][j] = val;
 		}
 	}
 	
-	// now create a hashed list to find them easier (hopefully)
+	// METHOD 1: now create a hashed list to find them later
+	// This will be a fallback to METHOD 2, in case memory is not enough
 	int64_t *hash_list = malloc( num_defects*sizeof(int64_t) );
 	for (int i = 0; i < num_defects; i++) {
 		hash_list[i] = hash(defects[i][0],defects[i][1],defects[i][2]);
 	}
 	
-	
 	qsort(hash_list, num_defects, sizeof(int64_t), int64_cmp);
 	
-	/* lookup table maybe even faster */
-	// nope, too big if MULTIPLIER > 1000
-	// needs 500 MB for MULTIPLIER = 1000
-	/*
-	int64_t hash_min = hash_list[0];
-	int64_t hash_max = hash_list[num_defects - 1];
-	int64_t span = hash_max - hash_min;
-	printf("Span: %lli\n",span);
-	char *defekt_ltb = malloc(  span );
-	assert (defekt_ltb != NULL);
-	// initialize array
-	for (int64_t i = 0; i < span; i++) {
-		defekt_ltb[i] = 0;
-	}
+	// METHOD 2: create lookup table for x -> lookup table for y -> lookup table for z 
+	// The smart thing is that the pointers are NULL if there is no defect in the corresponding slab,
+	// so only the z coordinates are really arrays
+	//
+	// If I need more space one could use the chars as bit fields,
+	// One needs to calculate the offset (or index of char) to get to the proper group though.
+	// get offset: offset = coord/sizeof(char) oder coord >> log2(sizeof(char))
+	// set bit: array[offset] |= 1 << coord%sizeof(char)
 	
-	// set the defects in the lookup table
-	for (int64_t i = 0; i < num_defects; i++) {
-		defekt_ltb[ hash_list[i] - hash_min] = 1;
-	}
-	*/
-	
-	/* another idea: create lookup table for x -> lookup table for y -> lookup table for z */
-	int mem_size_table = 0;	
-	char ***x_lookup = malloc(box_size * sizeof(char**));
+	// in check_defekt_3d:
+	// check bit: array[offset] & 1 << coord%sizeof(char)  > 1
+	//
+/*
+	int mem_size_table = 0;
+	// first coordinate (x) will be an array of pointers to an array of pointers
+	char ***lookup_table = malloc(box_size * sizeof(char**));
 	mem_size_table += box_size * sizeof(char**);
-	// initialize the arrays
+	// initialize the arrays to NULL pointer
 	for (int i = 0; i < box_size; i++) {
-		x_lookup[i]=NULL;
+		lookup_table[i]=NULL;
 	}
 	
-	// point the x coordinates of the defects to the corresponding y lookuptable
 	for (int i = 0; i < num_defects; i++) {
 		int x_index = defects[i][0];
 		int y_index = defects[i][1];
-		int z_index = defects[i][2];
-		if (x_lookup[x_index] == NULL) {
-			x_lookup[x_index] = malloc(box_size * sizeof(char*)); // malloc y_lookup pointers
+		int z_index = defects[i][2] / sizeof(char);
+		// check if there  is already an array at x_index ...
+		if (lookup_table[x_index] == NULL) {
+			// ... it's not! Create an array of pointers for the second coordinate
+			lookup_table[x_index] = malloc(box_size * sizeof(char*)); // malloc second coordinate pointers
 			mem_size_table += box_size * sizeof(char*);
-			for (int i = 0; i < box_size; i++) x_lookup[x_index][i]=NULL; // initialize the y_lookup pointers to NULL pointer
+			for (int i = 0; i < box_size; i++) 
+				lookup_table[x_index][i]=NULL; // initialize the second coordiante pointers to NULL
 		}
 		
-		if (x_lookup[x_index][y_index] == NULL) { // check if z_lookup table exists
-			x_lookup[x_index][y_index] = malloc(box_size * sizeof(char)); // set z_lookup
-			for (int i = 0; i < box_size; i++) x_lookup[x_index][y_index][i]=0; // initialize the z_lookup
+		// check if there is already an array at [x_index][y_index]		
+		if (lookup_table[x_index][y_index] == NULL) { // check if third coordinate array exists
+			lookup_table[x_index][y_index] = malloc(box_size * sizeof(char)); // malloc third coordinate array
 			mem_size_table += box_size * sizeof(char);
-
+			for (int i = 0; i < box_size; i++) 
+				lookup_table[x_index][y_index][i]=0; // initialize the third array to zero
+			
 		}
-		x_lookup[x_index][y_index][z_index] = 1;
+		// set the defect coordinate
+		lookup_table[x_index][y_index][z_index] = 1;
+
+		 }
+
+	int test_particle[4];
+	double start = omp_get_wtime();
+	for (int i = 0; i < 1024*1024*128; i++) {
+		for (int j = 0; j < 3; j++) {
+			test_particle[j] = (int) (dsfmt_genrand_close_open(&dsfmt)*box_size);
+		}
+		check_defect_3d(test_particle, lookup_table, 10);
 	}
+	double stop = omp_get_wtime();
+	printf("# Time Method 2: %.2fs\n", stop-start);
+	printf("# Lookup table size M1: %10.1fkB %i %i\n",  mem_size_table/((float) (1024)), num_defects, box_size);
+
+*/
 	
-	printf("lookup table size: %.1f MB\n",  mem_size_table/((float) (1024*1024)));
+	// Method 3: Using the scheme above but for x,y,z seperately
+	int ltb_N = (int) ceil( ( (double)box_size ) / sizeof(int));
+	int xltb[ltb_N];
+	int yltb[ltb_N];
+	int zltb[ltb_N];
+	for (int i = 0; i < ltb_N; i++) {
+		xltb[i]=0;
+		yltb[i]=0;
+		zltb[i]=0;
+	}
+	for (int i = 0; i < num_defects; i++) {
+		int xi =  defects[i][0] / sizeof(int);
+		int xbit = defects[i][0] % sizeof(int);
+		//printf("x %i %i %i %i\n",i, defects[i][0], xi, xbit);
+
+		xltb[xi] |= 1 << xbit;
+
+		int yi = defects[i][1] / sizeof(int);
+		int ybit = defects[i][1] % sizeof(int);
+		yltb[yi] |= 1 << ybit;
+		//printf("y %i %i %i %i\n",i, defects[i][1], yi, ybit);
+
+		int zi = defects[i][2] / sizeof(int);
+		int zbit = defects[i][2] % sizeof(int);
+		zltb[zi] |= 1 << zbit;
+		//printf("z %i %i %i %i\n",i, defects[i][2], zi, zbit);
+	}
+
+/*
+	start = omp_get_wtime();
+	for (int i = 0; i < 1024*1024*128; i++) {
+		for (int j = 0; j < 3; j++) {
+			test_particle[j] = (int) (dsfmt_genrand_close_open(&dsfmt)*box_size);
+		}
+		check_defect_ltb(test_particle, xltb, yltb, zltb , 0);
+	}
+	stop = omp_get_wtime();
+	printf("Time Method 3: %.2fs\n", stop-start);
+*/	
+	
+	printf("# Lookup table size M2: %10.1fkB %i %i\n",  3*ltb_N*sizeof(int) / ((float) (1024)), num_defects, box_size);
+
 	// check if the lookup table is correct
 	for (int i = 0; i < num_defects; i++) {
+
 		int x = defects[i][0];
 		int y = defects[i][1];
 		int z = defects[i][2];
-		//printf("Test: %i\n",x_lookup[x][y][z]);
-		assert(x_lookup[x][y][z] == 1);
+		//printf("Test: %i\n",lookup_table[x][y][z]);
+/*
+		assert(lookup_table[x][y][z] == 1); // Method 2
+*/
+		// Method 3
+		int xi = x/ sizeof(int);
+		int xbit = x % sizeof(int);
+		assert( (xltb[xi] & (1<<xbit)) != 0 ); 
+
+		int yi = y/ sizeof(int);
+		int ybit = y % sizeof(int);
+		assert( (yltb[yi] & (1<<ybit)) != 0 ); 
+
+
+		int zi = z/ sizeof(int);
+		int zbit  = z % sizeof(int);
+		assert( (zltb[zi] & (1<<zbit)) != 0 ); 
+
+		
 	}
-	
-	
-	// main loop
-	int main_loop_break = 0;
-	printf("\n# Starting ...\n");
-	for (int step = 0; step < nsteps && main_loop_break == 0; step++) {
-		start = 0; //omp_get_wtime();
-		int magnetization = 0;
-		// create random numbers for the movements (directions 1..6)
-		dsfmt_fill_array_open_close(&dsfmt, random_numbers, num_particles);
-#pragma omp parallel sections 
-		{
-#pragma omp section
-			{
-				// scale the to 0,1,2,3,4,5 (the 6 directions)
-				for (int i=0 ;i < num_particles; i++) {
-					random_numbers[i]*=6;
-				}
-			}
-#pragma omp section
-			{
-				// distribution of correlation times, rexp,rnor are NOT thread safe!
-				for (int i=0 ;i < num_particles; i++) {
-					correlation_times[i] = (int) rexp()*30;
-				}
-			}
-		}
-		
-		// loop over particles
-		
-		//		#pragma omp parallel  // shared(random_numbers,particles,hash_list,num_defects,step)
-		//		{
-#pragma omp parallel for schedule(dynamic,256) reduction(+:magnetization)// private(j) um j privat zu halten falls wir eine zweite for schleife hätten
-		for (int i = 0; i < num_particles; i++) {
-			// int tid = omp_get_thread_num();
-			// int num_threads = omp_get_num_threads();
-			
-			int* particle = particles[i];
-			int direction = (int) random_numbers[i];
-			
-			// only move particles which have not met defect yet == 0
-			// or see how often they met a defefct >= 0
-			if (particle[3] == 0) { 
-#ifdef STATS
-				// update histogram
-				//#pragma  omp critical
-				gsl_histogram_increment (h, direction);
-#endif
-				//if (step == 10 && i==10) printf("%i %i %i\n",particle[0],particle[1],particle[2]);
-				
-				// random step
-				move_particle(particle, direction);
-				
-				// obey periodic boundary conditions, i.e. fold back
-				check_pbc(particle, box_size);
-				
-				int tc = correlation_times[i];
-				// check_defect(particle, tc , hash_list, num_defects);
-				// check_defect_tlb(particle, tc, hash_min, span, defekt_ltb);
-				check_defect_3d(particle, x_lookup, tc);
-				//				ref_check_defect(particle, defects, num_defects);
-				
-			}
-			else { // particle is trapped, decrease the residual waiting time
-				particle[3] -= 1;
-				magnetization += 1;//particle[3];
-			}
-			//gsl_histogram_increment (hvisits, particle[3]);
-			//if (magnetization == num_particles) main_loop_break = 1;
-			//int tid = omp_get_thread_num();
-			//printf("Thread %i:  %i %i\n", id, i, direction);
-		} // end particle loop
-		
-		double dist = 0;
-#pragma omp parallel for reduction(+:dist)
-		for (int i = 0; i < num_particles; i++) {
-			dist += sqrt(pow(box_size/2 - particles[i][0],2) + pow(box_size/2 - particles[i][1],2) + pow(box_size/2 - particles[i][2],2))  ;
-		}
-		dist /= num_particles;
-		
-#ifdef STATS
-		if (step%5 == 0) {
-			/*
-			 char fname[100];
-			 snprintf(fname, sizeof(fname), "data/dist_step%05i.dat", step);
-			 FILE *fp = fopen(fname, "w");
-			 gsl_histogram_fprintf(fp, hvisits, "%g", "%g");
-			 fclose(fp);
-			 */
-		}
-		gsl_histogram_reset(hvisits);
-#endif
-		mags[step] = magnetization;
-		stop = 0;//omp_get_wtime();
-		printf("# Step: %8i (MSD: %e, MAG: %i) est. runtime: %.0f min %.0f s\r", \
-			   step, dist, magnetization, (stop-start)/60 * (nsteps - step), (stop-start) * (nsteps - step));
-		fflush(stdout);
-		
-	} // end steps loop
-	printf("\n# Simulation finnished\n");
-	
-	FILE *outFile;
-	// open the file we are writing to
-	if(!(outFile = fopen("binout.omp", "w")))
-		return 1;
-	
-	// use fwrite to write binary data to the file
-	fwrite(mags, sizeof(mags[0]), nsteps, outFile);
-	fclose(outFile);
+
 	
 	
 	/*
@@ -293,8 +249,118 @@ int main (int argc, char * argv[]) {
 	
 	
 	
-	//print_array(particles, num_particles, 4);
+	/******************************* loop *********************************/
+	// exchange outer with inner loop
+	printf("\n# Starting ...\n");
 	
+	int  *mags = malloc(nsteps * sizeof(int)); // magnetization per step
+	for (int i = 0; i < nsteps; i++) {
+		mags[i] = 0;
+	}
+	
+	
+	// loop over particles
+	double calc_time=0;
+	printf("MinSize: %i\n", DSFMT_N64);
+	double *dir_pool = malloc(DSFMT_N64 * sizeof(double));
+#pragma omp parallel for reduction(+:calc_time) firstprivate(dir_pool)
+	for (int i = 0; i < num_particles; i+=DSFMT_N64) {
+		// every thread gets its own RNG
+		dsfmt_t dsfmt;
+		dsfmt_init_gen_rand(&dsfmt, i);
+		
+		/*
+		 double *random_numbers_steps = malloc(nsteps * sizeof(double));		
+		 // create random numbers for the movements (directions 1..6)
+		 dsfmt_fill_array_open_close(&dsfmt, random_numbers_steps, nsteps);
+		 
+		 // scale the to 0,1,2,3,4,5 (the 6 directions)
+		 for (int i=0 ;i < nsteps; i++) {
+		 directions[i] = (short) (random_numbers_steps[i]*6);
+		 }
+		 free(random_numbers_steps);
+		 */
+		
+		// distribution of correlation times, rexp,rnor are NOT thread safe!
+		//for (int i=0 ;i < num_particles; i++) {
+		//	correlation_times[i] = (int) rexp()*30;
+		//}
+		
+		// loop over steps
+		for (int step = 0; step < nsteps; step++) {
+			dsfmt_fill_array_open_close(&dsfmt, dir_pool, DSFMT_N64);
+			double start = omp_get_wtime();
+			// doing batches of particles
+			for (int j = 0; j < DSFMT_N64; j++) { 
+				int* particle = particles[i+j];
+				int direction = dir_pool[j];
+				//int direction = (int) (dsfmt_genrand_close_open(&dsfmt)*6); 
+				// only move particles which have not met defect yet == 0
+				// or see how often they met a defefct >= 0
+				if (particle[3] == 0) { 
+					
+					// random step
+					move_particle(particle, direction);
+					
+					// obey periodic boundary conditions, i.e. fold back
+					check_pbc(particle, box_size);
+					
+					int tc = 10;
+					
+					// check_defect(particle, tc , hash_list, num_defects);
+					// check_defect_tlb(particle, tc, hash_min, span, defekt_ltb);
+					// check_defect_3d(particle, lookup_table, tc);
+					check_defect_ltb(particle, xltb, yltb, zltb , tc);
+
+					// ref_check_defect(particle, defects, num_defects);
+				}
+				else { // particle is trapped, decrease the residual waiting time
+					particle[3] -= 1;
+				}
+				#pragma omp atomic
+				mags[step] += particle[3];
+				//gsl_histogram_increment (hvisits, particle[3]);
+				//if (magnetization == num_particles) main_loop_break = 1;
+				//int tid = omp_get_thread_num();
+				//printf("Thread %i:  %i %i\n", id, i, direction);
+				/*if (step%2000 == 0) {
+				 printf("# Step: %8i (MAG: %5i)\r", step, magnetization);
+				 fflush(stdout);
+				 }*/
+				//printf("%8i %8i %8i %8i\n",particle[0],particle[1],particle[2],particle[3]);
+				
+			} // end sub particle loop
+			double stop = omp_get_wtime();
+			calc_time += (stop-start);
+
+		} // end steps loop
+		/*
+		 if (i%32 == 0) {
+		 double stop = omp_get_wtime();
+		 printf("# Particle: %8i (%8.3f s) Magnetization: %8i\r",i , (stop-start)/32 , magnetization);
+		 fflush(stdout);
+		 }
+		 */
+		// open the file we are writing to
+		
+		
+		//#pragma omp critical
+		//printf("# Particle: %8i (%8.3f s) \n",i , stop-start);		
+	} // end particle loop
+	printf("Speed: %.2e s/particle \n", calc_time/num_particles);
+	
+	FILE *outFile;
+	char fname[] = "binout.omp";
+	sprintf(fname, "binout.om%i",0);
+	outFile = fopen(fname, "w");
+	// use fwrite to write binary data to the file
+	fwrite(mags, sizeof(mags[0]), nsteps, outFile);
+	fclose(outFile);
+	print_array(particles, 10, 3);
+	
+	
+	//print_array(particles, num_particles, 4);
+	free(mags);
 	free2D_i(particles);
 	free2D_i(defects);
 #ifdef STATS
@@ -443,11 +509,11 @@ void move_particle(int *particle, int direction){
 	} // end switch statement	
 }
 
-void check_pbc(int* particle, int box_size) {
+static inline void check_pbc(int* particle, int box_size) {
 	for (int i = 0; i < 3; i++) {
-		
 		// % is NOT the mod operator, but the REMAINDER, it is not working for negative numbers (of course in C only)
-		particle[i] = particle[i] % box_size + (particle[i]<0?box_size:0);		
+		//particle[i] = particle[i] % box_size + (particle[i]<0?box_size:0);
+		particle[i] &= (box_size - 1);
 	}
 }
 /* binary search */
@@ -460,13 +526,12 @@ void check_defect(int* particle, int correlation_time, int64_t* hash_list, int n
 		particle[3] = correlation_time;
 }
 
-/* lookup table */
+/* lookup table 1 */
 
-void check_defect_tlb(int* particle, int correlation_time, int64_t hash_list_min, int64_t span, char* defekt_ltb){
+void check_defect_hash(int* particle, int correlation_time, int64_t hash_list_min, int64_t span, char* defekt_ltb){
 	int64_t hash_val, offset;
 	hash_val = hash(particle[0],particle[1],particle[2]);
 	offset = hash_val -  hash_list_min;
-	//printf("Offset: %lli\n", offset);
 	if ((offset >= 0) && (offset < span)) {
 		if (defekt_ltb[ offset ] == 1)
 			particle[3] = correlation_time;
@@ -474,7 +539,7 @@ void check_defect_tlb(int* particle, int correlation_time, int64_t hash_list_min
 }
 
 
-/* lookup table */
+/* check Method 3 */
 
 void check_defect_3d(int* particle, char*** lookup, int correlation_time){
 	int x = particle[0];
@@ -482,11 +547,47 @@ void check_defect_3d(int* particle, char*** lookup, int correlation_time){
 	int z = particle[2];
 	if (lookup[x] != NULL) {
 		if (lookup[x][y] != NULL) {
-			if (lookup[x][y][z] == 1)
+			if (lookup[x][y][z] == 1) {
 				particle[3] = correlation_time;
+			}
 		}
 	}
 }
+
+void check_defect_ltb(int* particle, int* x, int* y, int* z, int correlation_time){
+	int i = particle[0] / sizeof(int);
+	int bit = 1<< particle[0] % sizeof(int);
+	if (  (x[i] & 1 << bit) > 0) {
+		i = particle[1] / sizeof(int);
+		bit = 1<< particle[1] % sizeof(int);
+		if (  (y[i] & 1 << bit) > 0) {
+			i = particle[2] / sizeof(int);
+			bit = 1<< particle[2] % sizeof(int);
+			if (  (z[i] & 1 << bit) > 0) {
+				particle[3] = correlation_time;
+			}
+		}
+	}
+		/*
+	 switch ( (x[particle[0] / sizeof(int)]) & (1<< particle[0] % sizeof(int))  ) {
+		 case 0:
+			 break;
+		 default:
+			 switch ( (y[particle[1] / sizeof(int)]) & (1<< particle[1] % sizeof(int))  ) {
+				 case 0:
+					 break;
+				 default:
+					 switch ( (z[particle[2] / sizeof(int)]) & (1<< particle[2] % sizeof(int))  ) {
+						 case 0:
+							 break;
+						 default:
+							 particle[3] = correlation_time;							 
+					 }
+			 }
+	 }*/
+}
+
+
 
 /*
  void check_defect(int* particle, int correlation_time, int64_t* hash_list, int num_defects ){
@@ -516,7 +617,7 @@ void check_defect_3d(int* particle, char*** lookup, int correlation_time){
  
  */
 
-// REFERENZ IMPLEMENTIERUNG
+// REFERENCE METHOD
 void ref_check_defect(int* particle, int** defect_coords, int num_defects){
 	int isDefect = 0; 
 	for (int i = 0; (i < num_defects) && (isDefect == 0); i++) {

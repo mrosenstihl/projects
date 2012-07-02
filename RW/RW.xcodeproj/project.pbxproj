@@ -7,18 +7,9 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		1C4CAC78146B33D200EB18C0 /* zmq_main.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = zmq_main.c; sourceTree = "<group>"; };
-		1C4CAC79146B33D200EB18C0 /* zmq_main.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = zmq_main.h; sourceTree = "<group>"; };
-		1C4CAC7A146B33D200EB18C0 /* zmq_worker.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = zmq_worker.c; sourceTree = "<group>"; };
-		1C4CAC7B146B33D200EB18C0 /* zmq_worker.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = zmq_worker.h; sourceTree = "<group>"; };
-		1C4CAC7E146B33EC00EB18C0 /* zmq.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = zmq.h; sourceTree = "<group>"; };
-		1C4CAC7F146B33EC00EB18C0 /* zmq.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = zmq.hpp; sourceTree = "<group>"; };
-		1C4CAC80146B33EC00EB18C0 /* zmq_utils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = zmq_utils.h; sourceTree = "<group>"; };
-		1C4CAC82146B33EC00EB18C0 /* libzmq.1.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libzmq.1.dylib; sourceTree = "<group>"; };
-		1C4CAC83146B33EC00EB18C0 /* libzmq.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libzmq.a; sourceTree = "<group>"; };
-		1C4CAC84146B33EC00EB18C0 /* libzmq.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libzmq.dylib; sourceTree = "<group>"; };
-		1C4CAC85146B33EC00EB18C0 /* libzmq.la */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = libzmq.la; sourceTree = "<group>"; };
-		1C4CAC87146B33EC00EB18C0 /* libzmq.pc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = libzmq.pc; sourceTree = "<group>"; };
+		1C28D44714745BAC003BA2DE /* ziggurat.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = ziggurat.c; sourceTree = "<group>"; };
+		1C28D44814745BAC003BA2DE /* ziggurat.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ziggurat.h; sourceTree = "<group>"; };
+		1C28D44914745BAC003BA2DE /* zigtest.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = zigtest.c; sourceTree = "<group>"; };
 		1C833292145455510019116D /* main.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = "<group>"; };
 		1C83332914549C170019116D /* main.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = main.h; sourceTree = "<group>"; };
 		1C83333F14549DCA0019116D /* CHANGE-LOG.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "CHANGE-LOG.txt"; sourceTree = "<group>"; };
@@ -75,111 +66,38 @@
 		1C83337314549DCB0019116D /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; path = Makefile; sourceTree = "<group>"; };
 		1C83337414549DCB0019116D /* README.jp.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = README.jp.txt; sourceTree = "<group>"; };
 		1C83337514549DCB0019116D /* README.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = README.txt; sourceTree = "<group>"; };
-		1C83337614549DCB0019116D /* test-sse2-M11213 */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = "test-sse2-M11213"; sourceTree = "<group>"; };
-		1C83337714549DCB0019116D /* test-sse2-M1279 */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = "test-sse2-M1279"; sourceTree = "<group>"; };
-		1C83337814549DCB0019116D /* test-sse2-M132049 */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = "test-sse2-M132049"; sourceTree = "<group>"; };
-		1C83337914549DCB0019116D /* test-sse2-M19937 */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = "test-sse2-M19937"; sourceTree = "<group>"; };
-		1C83337A14549DCB0019116D /* test-sse2-M216091 */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = "test-sse2-M216091"; sourceTree = "<group>"; };
-		1C83337B14549DCB0019116D /* test-sse2-M2203 */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = "test-sse2-M2203"; sourceTree = "<group>"; };
-		1C83337C14549DCB0019116D /* test-sse2-M4253 */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = "test-sse2-M4253"; sourceTree = "<group>"; };
-		1C83337D14549DCB0019116D /* test-sse2-M44497 */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = "test-sse2-M44497"; sourceTree = "<group>"; };
-		1C83337E14549DCB0019116D /* test-sse2-M521 */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = "test-sse2-M521"; sourceTree = "<group>"; };
-		1C83337F14549DCB0019116D /* test-sse2-M86243 */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = "test-sse2-M86243"; sourceTree = "<group>"; };
 		1C83338014549DCB0019116D /* test-std-M19937 */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = "test-std-M19937"; sourceTree = "<group>"; };
 		1C83338114549DCB0019116D /* test.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = test.c; sourceTree = "<group>"; };
-		1C8338A3145B42030019116D /* zigtest.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = zigtest.c; sourceTree = "<group>"; };
-		1C833914145B4AB90019116D /* ziggurat.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ziggurat.h; sourceTree = "<group>"; };
-		1C833915145B4AB90019116D /* ziggurat.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = ziggurat.c; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
 		08FB7794FE84155DC02AAC07 /* RW */ = {
 			isa = PBXGroup;
 			children = (
-				1C4CAC78146B33D200EB18C0 /* zmq_main.c */,
-				1C4CAC79146B33D200EB18C0 /* zmq_main.h */,
-				1C4CAC7A146B33D200EB18C0 /* zmq_worker.c */,
-				1C4CAC7B146B33D200EB18C0 /* zmq_worker.h */,
+				1C28D44614745BAC003BA2DE /* ziggurat */,
 				1C833292145455510019116D /* main.c */,
-				1C8338A3145B42030019116D /* zigtest.c */,
 				1C83332914549C170019116D /* main.h */,
-				1C833914145B4AB90019116D /* ziggurat.h */,
-				1C833915145B4AB90019116D /* ziggurat.c */,
 				1C4CAC7C146B33EC00EB18C0 /* zmq */,
 				1C83333E14549DCA0019116D /* dSFMT-src-2.1 */,
 			);
 			name = RW;
 			sourceTree = "<group>";
 		};
+		1C28D44614745BAC003BA2DE /* ziggurat */ = {
+			isa = PBXGroup;
+			children = (
+				1C28D44714745BAC003BA2DE /* ziggurat.c */,
+				1C28D44814745BAC003BA2DE /* ziggurat.h */,
+				1C28D44914745BAC003BA2DE /* zigtest.c */,
+			);
+			path = ziggurat;
+			sourceTree = "<group>";
+		};
 		1C4CAC7C146B33EC00EB18C0 /* zmq */ = {
 			isa = PBXGroup;
 			children = (
-				1C4CAC7D146B33EC00EB18C0 /* include */,
-				1C4CAC81146B33EC00EB18C0 /* lib */,
-				1C4CAC88146B33EC00EB18C0 /* share */,
 			);
 			path = zmq;
-			sourceTree = "<group>";
-		};
-		1C4CAC7D146B33EC00EB18C0 /* include */ = {
-			isa = PBXGroup;
-			children = (
-				1C4CAC7E146B33EC00EB18C0 /* zmq.h */,
-				1C4CAC7F146B33EC00EB18C0 /* zmq.hpp */,
-				1C4CAC80146B33EC00EB18C0 /* zmq_utils.h */,
-			);
-			path = include;
-			sourceTree = "<group>";
-		};
-		1C4CAC81146B33EC00EB18C0 /* lib */ = {
-			isa = PBXGroup;
-			children = (
-				1C4CAC82146B33EC00EB18C0 /* libzmq.1.dylib */,
-				1C4CAC83146B33EC00EB18C0 /* libzmq.a */,
-				1C4CAC84146B33EC00EB18C0 /* libzmq.dylib */,
-				1C4CAC85146B33EC00EB18C0 /* libzmq.la */,
-				1C4CAC86146B33EC00EB18C0 /* pkgconfig */,
-			);
-			path = lib;
-			sourceTree = "<group>";
-		};
-		1C4CAC86146B33EC00EB18C0 /* pkgconfig */ = {
-			isa = PBXGroup;
-			children = (
-				1C4CAC87146B33EC00EB18C0 /* libzmq.pc */,
-			);
-			path = pkgconfig;
-			sourceTree = "<group>";
-		};
-		1C4CAC88146B33EC00EB18C0 /* share */ = {
-			isa = PBXGroup;
-			children = (
-				1C4CAC89146B33EC00EB18C0 /* man */,
-			);
-			path = share;
-			sourceTree = "<group>";
-		};
-		1C4CAC89146B33EC00EB18C0 /* man */ = {
-			isa = PBXGroup;
-			children = (
-				1C4CAC8A146B33EC00EB18C0 /* man3 */,
-				1C4CAC8B146B33EC00EB18C0 /* man7 */,
-			);
-			path = man;
-			sourceTree = "<group>";
-		};
-		1C4CAC8A146B33EC00EB18C0 /* man3 */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = man3;
-			sourceTree = "<group>";
-		};
-		1C4CAC8B146B33EC00EB18C0 /* man7 */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = man7;
 			sourceTree = "<group>";
 		};
 		1C83333E14549DCA0019116D /* dSFMT-src-2.1 */ = {
@@ -217,16 +135,6 @@
 				1C83337314549DCB0019116D /* Makefile */,
 				1C83337414549DCB0019116D /* README.jp.txt */,
 				1C83337514549DCB0019116D /* README.txt */,
-				1C83337614549DCB0019116D /* test-sse2-M11213 */,
-				1C83337714549DCB0019116D /* test-sse2-M1279 */,
-				1C83337814549DCB0019116D /* test-sse2-M132049 */,
-				1C83337914549DCB0019116D /* test-sse2-M19937 */,
-				1C83337A14549DCB0019116D /* test-sse2-M216091 */,
-				1C83337B14549DCB0019116D /* test-sse2-M2203 */,
-				1C83337C14549DCB0019116D /* test-sse2-M4253 */,
-				1C83337D14549DCB0019116D /* test-sse2-M44497 */,
-				1C83337E14549DCB0019116D /* test-sse2-M521 */,
-				1C83337F14549DCB0019116D /* test-sse2-M86243 */,
 				1C83338014549DCB0019116D /* test-std-M19937 */,
 				1C83338114549DCB0019116D /* test.c */,
 			);

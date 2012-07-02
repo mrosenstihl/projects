@@ -74,14 +74,19 @@ def tricube(x,x0):
     return tric
 
 
-def bootstrap(xs,ys,window,robust_iterations=1, resampling=False, num=500):
+def bootstrap(xs,ys,window,robust_iterations=1, resampling=False, num=500, statusbar=None):
     results = []
     i = 0
-    while i < num:
+    j = 0
+    while (i < num) and (j < 3*num):
+        j += 1
         index = N.random.randint(0,len(ys)-1,len(ys))
         x,y = xs[index],ys[index]
         y_loess  = lowess(x,y, window,robust_iterations)
         if not N.any(N.isnan(y_loess)):
+            if (i%20)==0 and ( statusbar != None ):
+                statusbar.statusBar().showMessage('Calculating CI: %.0f %%'%(i*100./num), 100)
+                statusbar.show()
             results.append(y_loess[x.argsort()])
             i += 1
     results = N.array(results)
@@ -258,7 +263,7 @@ class AppForm(QMainWindow):
         QMessageBox.information(self, "Click!", msg)
 
     def window_changed(self):
-        self.statusBar().showMessage("Calculating ... ", 2000)
+        self.statusBar().showMessage("Calculating ... ", 100)
         if self.median_cb.isChecked():
             x,y = median_resampling(self.data[0,:], self.data[1,:])
         else:
@@ -271,7 +276,7 @@ class AppForm(QMainWindow):
             # confidence intervals via bootstrap
             if self.ci_cb.isChecked():
                 ci = float(self.cibox.text())
-                bootstrap_results = bootstrap(x,y,f, robust_iters, False, num=600)
+                bootstrap_results = bootstrap(x,y,f, robust_iters, False, num=600, statusbar=self)
                 y_loess_min = N.percentile(bootstrap_results,100-ci, axis=0)
                 y_loess_max = N.percentile(bootstrap_results,ci, axis=0)
                 y_loess_bsmean = bootstrap_results.mean(axis=0)
@@ -312,14 +317,24 @@ class AppForm(QMainWindow):
         y_smoothed_original = self.smoothed_data[2,:]
         self.axes.plot(x,y, picker=5, color='b',ls='-')
         if self.median_cb.isChecked():
-            self.axes.plot(x_smoothed,y_smoothed_original, color='g',ls='--', label="Resampled data")
+            self.axes.plot(x_smoothed,y_smoothed_original, color='g',ls='-', marker='o', markersize=2.0, label="Resampled data")
         if self.ci_cb.isChecked():
             y_ci1 = self.smoothed_data[3,:]
             y_ci2 =  self.smoothed_data[4,:]
             self.axes.plot(x_smoothed, y_ci1, lw=0.5, color='r')
             self.axes.plot(x_smoothed, y_ci2, lw=0.5, color='r')
             self.axes.fill_between(x_smoothed, y_ci1, y_ci2, where=None, color='r', alpha=0.1)
-        self.axes.plot(x_smoothed,y_smoothed,color='r',markeredgecolor="r", ls='-', lw=1.5, marker='None',markersize=2.5, label="LOESS %s"%(str(self.textbox.text()).strip()))
+        try: 
+            f = float( self.textbox.text() )/x.ptp()
+        except:
+            f=0
+        self.axes.plot(x_smoothed,y_smoothed,color='r',
+						markeredgecolor="r", 
+						ls='-', 
+						lw=1.5, 
+						marker='None',
+						markersize=2.5, 
+						label="LOESS (%s yr or %.2f span)"%(str(self.textbox.text()).strip(),f ))
         self.axes.set_xlabel(self.set_x_column.currentText())
         self.axes.set_ylabel(self.set_y_column.currentText())
         self.axes.legend()

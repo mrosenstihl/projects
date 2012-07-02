@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from PyQt4 import QtCore, QtGui, Qt
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
@@ -7,7 +8,7 @@ import numpy as N
 import mainwindow as M
 import scipy.odr as O
 
-DEBUG = False
+DEBUG = True
 
 try:
     _fromUtf8 = QtCore.QString.fromUtf8
@@ -51,14 +52,15 @@ def recurse_selected_items(items,alist):
 
 
 class CustomToolbar(NavigationToolbar):
-    # our span changed signal
+    # our spanChanged signal
     spanSelectedTrigger = QtCore.pyqtSignal(int, int, name='spanChanged')
     def __init__(self, plotCanvas, plotWidget):
         NavigationToolbar.__init__(self, plotCanvas, plotWidget, coordinates=True)
         self.canvas = plotCanvas
+        # Span select Button
         self.span_button = QtGui.QAction(QtGui.QIcon("border-1d-right-icon.png" ), "Span", self)
         self.span_button.setCheckable(True)
-
+        
         self.cids = []
         self.cids.append(self.canvas.mpl_connect('button_press_event', self.press))
         self.cids.append(self.canvas.mpl_connect('motion_notify_event', self.onmove))
@@ -67,11 +69,11 @@ class CustomToolbar(NavigationToolbar):
         
 
         #    act.setCheckable(True)
-
+        # add actions before the coordinates widget 
         self.insertAction(self.actions()[-1], self.span_button)
+
         self.buttons={}
         self._pressed = False
-        #self.span = Polygon([[0,0],[0,1],[1,1],[1,0]], fill=True, visible=True, facecolor='r',ls='solid', alpha=0.2)
         self.background = None
         self.span = None
         self.istart = 0
@@ -110,7 +112,7 @@ class CustomToolbar(NavigationToolbar):
             else:
                 self.set_span(event.xdata, event.xdata)
             self._pressed = True
-
+    
     def onmove(self,event):
         if self.span_button.isChecked() and self._pressed and not self.ignore(event): 
             self.set_span(self.xstart, event.xdata)
@@ -388,7 +390,7 @@ class SelectablePlotWidget:
         self.qp_cb.activated.connect(self.updateView)
 
         #
-        # spin box for phase aadjustment
+        # spin box for phase adjustment
         #
         self.qp_spinbox = QtGui.QDoubleSpinBox()
         self.qp_spinbox.setRange(0,360)
@@ -418,8 +420,8 @@ class SelectablePlotWidget:
         hbox.addWidget( self.qp_spinbox )
 
         vbox = QtGui.QVBoxLayout()
-        vbox.addWidget( self.qp_canvas )
         vbox.addWidget( self.qp_toolbar )
+        vbox.addWidget( self.qp_canvas )
         vbox.addLayout(hbox)
         self.qp.setLayout( vbox )
         
@@ -432,7 +434,7 @@ class SelectablePlotWidget:
         if self.popup:
             self.qp.show()
 
-    def setNodes(self,nodes):
+    def setNodes(self, nodes):
         self.nodes = nodes
 
     def updateView(self, some):
@@ -511,7 +513,7 @@ class BlitQT(FigureCanvas):
         event.button, event.x, event.y, event.xdata, event.ydata)
     
     def updatePlot(self, new_t, new_real, new_imag):
-        print "updatePlot"
+        if DEBUG: print "updatePlot"
         xmin,xmax = new_t.min(), new_t.max()
         ymin,ymax = min(new_real.min(),new_imag.min()), max(new_real.max(),new_imag.max()) 
         axmin, axmax = self.axes.get_xlim()
@@ -535,6 +537,7 @@ class BlitQT(FigureCanvas):
             self.axes.set_ylabel("signal / a.u.")
             self.real_part, = self.axes.plot(new_t, new_real, marker='None', ls="-", color='r', label = "Real")
             self.imag_part, = self.axes.plot(new_t, new_imag, marker='None', ls="-", color='b', label = "Imag")
+            self.axes.legend()
             # redraw the whole figure
             self.draw()
             self.axes_background = self.copy_from_bbox(self.axes.bbox)

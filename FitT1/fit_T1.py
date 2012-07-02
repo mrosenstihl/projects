@@ -204,7 +204,7 @@ try:
 #	print N.max(y)
 	print "Amps: %f Mag: %f"%(N.max(yamp),N.max(y))
 	t = N.array(x)
-	y = N.array(y)
+	y = N.array(yamp)
 	x = t
 except IOError:
 	d = N.loadtxt(filename)
