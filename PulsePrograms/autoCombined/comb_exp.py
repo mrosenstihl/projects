@@ -96,13 +96,14 @@ def Hahn_exp(pulse90,pulse180,td, tau, run, accumulations):
 
     
 
-def Stim_experiment(run, tp, tm, pulse, phase, td):
+def ste(run, tp, tm, pulse90, phase, td, gate=10e-6):
     e=Experiment()
     e.set_description("run",run)
     e.set_description("tp",tp)
     e.set_description("tm",tm)
     e.set_description("pulse",pulse)
     e.set_description("phase",phase)
+    e.set_description("gate",gate)
     e.set_description("td",td)
     
     #phase cycling removes all but first and second FID
@@ -114,7 +115,6 @@ def Stim_experiment(run, tp, tm, pulse, phase, td):
     # ----------------------------------------------------------------------
     dead_time = 15e-6  	# dead time (s)
     e.set_description("dead",dead_time)
-    gate = 10e-6        # gate time (s)
     # ---------------------------------------------------------------------
     if pulse>10e-6:
         raise Exception("--- 90 Pulse too long!!! ---")

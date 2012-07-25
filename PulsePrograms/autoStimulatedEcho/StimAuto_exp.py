@@ -1,62 +1,75 @@
-import xml.etree.ElementTree as ET
-import time
-def get_time(experiment):
-    tree = ET.fromstring(experiment.write_xml_string()) # create XML tree representation
-    time = 0
-    for state in tree.getiterator(tag='state'):
-        time += float(state.get('time'))
-    return time
+import PulsePrograms.pulsetools as T
 
-def Stim_experiment(run, tp, tm, pulse, phase, td):
+def ste(**args):
+    """
+    Parameters to set:
+    run,         # run
+    pulse90,     
+    tp,          # evolution time
+    tm,          # mixing time
+    phase,       # receiver phase
+    gate,        # high power amplifier gating time
+    dead_time,   # receiver dead time
+    nsamples,    # number of samples (ADC)
+    samplefreq,   sampling freq (ADC)
+    sens,        # sensitivity (ADC)
+
+    """
     e=Experiment()
-    e.set_description("run",run)
-    e.set_description("tp",tp)
-    e.set_description("tm",tm)
-    e.set_description("pulse",pulse)
-    e.set_description("phase",phase)
-    e.set_description("td",td)
-    
+    par = T.ParameterSet(e,args)
     #phase cycling removes all but first and second FID
     ph1=0
-    ph2 = [0,180][run%2]
-    ph3 = [0,180,180,0][run%4]
-    e.set_description('rec',[0,0,2,2][run%4])
+    ph2 = [0,180][par.run%2]
+    ph3 = [0,180,180,0][par.run%4]
+    e.set_description('rec',[0,0,2,2][par.run%4])
     #rec_phase = [0,90,180,270][run%4]
     # ----------------------------------------------------------------------
-    dead_time = 15e-6  	# dead time (s)
-    e.set_description("dead",dead_time)
-    gate = 10e-6        # gate time (s)
-    # ---------------------------------------------------------------------
-    if pulse>10e-6:
+    if par.pulse90>10e-6:
         raise Exception("--- 90 Pulse too long!!! ---")
-    if tm < gate:
+    if par.tm < par.gate:
         raise Exception("--- Mixing time shorter than gate time!!! ---")
-    if tp < gate:
+    if par.tp < par.gate:
         raise Exception("--- Evolution time shorter than gate time!!! ---")
-    if tp < dead_time:
+    if par.tp < par.dead_time:
         raise Exception("--- STE is within receiver dead time ---")
     # ---------------------------------------------------------------------
     e.wait(1e-3)    
     e.set_phase(ph1)    
-    e.wait(td-0.5e-6-gate)    
+    e.wait(par.td-0.5e-6-par.gate)    
 
     # Stimulated-Echo ------------------------------------------------------
-    e.ttl_pulse(length=gate, value=1)              # gate high-power ampli on
-    e.ttl_pulse(length=pulse, value=1+2)        # RF pulse 1       
+    e.ttl_pulse(length=par.gate, value=1)              # gate high-power ampli on
+    e.ttl_pulse(length=par.pulse90, value=1+2)        # RF pulse 1       
     e.set_phase(ph2)                   
-    e.wait(tp-0.5e-6-gate)
-    e.ttl_pulse(length=gate, value=1)               # gate high-power ampli on         
-    e.ttl_pulse(length=pulse, value=1+2)         # RF pulse 2 
+    e.wait(par.tp-0.5e-6-par.gate90)
+    e.ttl_pulse(length=par.gate, value=1)               # gate high-power ampli on         
+    e.ttl_pulse(length=par.pulse90, value=1+2)         # RF pulse 2 
     e.set_phase(ph3)                    
-    e.wait(tm-0.5e-6-gate)
-    e.ttl_pulse(length=gate, value=1)               # gate high-power ampli on         
-    e.ttl_pulse(length=pulse, value=1+2)         # RF pulse 3
+    e.wait(par.tm-0.5e-6-par.gate)
+    e.ttl_pulse(length=par.gate, value=1)               # gate high-power ampli on         
+    e.ttl_pulse(length=par.pulse90, value=1+2)         # RF pulse 3
     # ---------------------------------------------------------------------    
                          
-    e.set_phase(phase)    # receiver phase
-    e.wait(dead_time-0.5e-6)  # dead time
-    e.record(samples=1024*64, frequency=20e6, sensitivity=10)    # acquisition command
+    e.set_phase(par.phase)    # receiver phase
+    e.wait(par.dead_time-0.5e-6)  # dead time
+    e.record(samples=par.nsamples, frequency=par.samplefreq, sensitivity=par.sens)    # acquisition command
     return e
+
+
+def ste_experiment(tp_range, tm_range, accumulations, **kwds):
+    mtime = 0
+    for tp in tp_range:
+        for tm in tm_range:
+            e = ste(run=0,**kwds)
+            mtime += T.get_scan_time(e)*accumulations
+    print mtime
+    for tp in tp_range:
+        for tm in tm_range:
+            for run in xrange(accumulations):
+                e = ste(run=run,**kwds)
+                yield e
+            synchronize()
+
     
 
 def experiment():
