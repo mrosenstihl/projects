@@ -5,4 +5,5 @@ import saveagr
 
 mpl.plot(x,y)
 ...
-saveagr.saveagr('filename')
+a = saveagr.SaveAGR()
+a.saveagr('filename')

@@ -19,7 +19,7 @@ class SaveAGR(object):
                         "d":"3", "D":"4", "2":"5", 
                         "3":"6", "4":"7","1":"8", 
                         "+":"9","x":"10","*":"11"  }
-        self.color_map = {"k":"1", "r":"2", "g":"3", "b":"4", "y":"5", "c":"9", "m":"10"  }
+        self.color_map = {"w":"0", "k":"1", "r":"2", "g":"3", "b":"4", "y":"5", "c":"9", "m":"10"  }
         self.scale_map = {"log":"Logarithmic", "linear":"Normal"}
         self._new_colors = []
         self.textscale = 0
