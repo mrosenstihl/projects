@@ -147,7 +147,7 @@ class test(QtGui.QMainWindow):
         #QtGui.QMainWindow.__init__(self)
 
 
-        self.chooser = QtGui.QAction("get amplitudes", self)
+        self.chooser = QtGui.QAction("Extract amplitudes ...", self)
         self.ui.treeData.addAction(self.chooser)
         
         # connections
@@ -363,6 +363,7 @@ class FitWidget:
     def __init__(self):
 
         pass
+
 class SelectablePlotWidget:  
     def __init__(self, parent = None, nodes=[]):
         # try to bind the getData method
@@ -376,7 +377,7 @@ class SelectablePlotWidget:
             self.qp = QtGui.QWidget()
 
         # t,real,imag
-        self.qp_canvas = BlitQT([0,1,2,3],[2,3,4,5],[1,2,3,4])
+        self.qp_canvas = BlitQT([0,1],[0,1],[0,1])
         if parent is not None:
             self.popup = False
             self.qp_canvas.setParent( parent )
@@ -438,7 +439,6 @@ class SelectablePlotWidget:
         self.nodes = nodes
 
     def updateView(self, some):
-        print "Updating view",self.qp_cb.currentIndex()
         index = self.qp_cb.currentIndex()
         self.phase = self.qp_spinbox.value()
         try:
@@ -473,23 +473,21 @@ class BlitQT(FigureCanvas):
         FigureCanvas.__init__(self, Figure())
 
         self.axes = self.figure.add_subplot(111)
-        self.axes.grid()
-        self.axes.set_xlabel("time / s")
-        self.axes.set_ylabel("signal / a.u.")
-        self.draw()
+        #self.axes.grid()
+        #self.axes.set_xlabel("time / s")
+        #self.axes.set_ylabel("signal / a.u.")
+        # save the current plot 
+        #self.axes_background = self.copy_from_bbox(self.axes.bbox)
 
         self.old_size = self.axes.bbox.width, self.axes.bbox.height
-        # save the current plot 
-        self.axes_background = self.copy_from_bbox(self.axes.bbox)
         
         # add a real/imag line
-        self.real_part, = self.axes.plot(t, real, marker='o', ls="-", color='r', label = "Real")
-        self.imag_part, = self.axes.plot(t, imag, marker='o', ls="-", color='b', label = "Imag")
+        #self.real_part, = self.axes.plot(t, real, marker=".", ls="-", color='r', label = "Real", animated=True)
+        #self.imag_part, = self.axes.plot(t, imag, marker=".", ls="-", color='b', label = "Imag", animated=True)
+        #self.axes.legend()
+        #self.draw()
 
-        # add legend
-        self.axes.legend()
-        self.draw()
-        
+
         # connections
         self.setFocus()
         self.mpl_connect('button_press_event', self.onclick)
@@ -513,45 +511,41 @@ class BlitQT(FigureCanvas):
         event.button, event.x, event.y, event.xdata, event.ydata)
     
     def updatePlot(self, new_t, new_real, new_imag):
-        if DEBUG: print "updatePlot"
-        xmin,xmax = new_t.min(), new_t.max()
-        ymin,ymax = min(new_real.min(),new_imag.min()), max(new_real.max(),new_imag.max()) 
+        xmin,xmax = min(new_t), max(new_t)
+        ymin  = min(min(new_real), min(new_imag))
+        ymax  = max(max(new_real), max(new_imag)) 
         axmin, axmax = self.axes.get_xlim()
         aymin, aymax = self.axes.get_ylim()
-        # redraw the whole figure if the size has changed
+
         current_size = self.axes.bbox.width, self.axes.bbox.height
-        size_changed = self.old_size != current_size
-        # or if we need to autoscale, if axes need to be rescaled by 20 %
-        need_autoscale = False
-        if not ( 0.8  < axmax/xmax < 1.2 ):
-            need_autoscale = need_autoscale or True
-        elif not ( 0.8  < aymin/ymin < 1.2 ) or not  ( 0.8  < aymax/ymax < 1.2 ):
-            need_autoscale = need_autoscale or True
-        if size_changed or need_autoscale :
+        if DEBUG: print "updatePlot"
+        if (self.old_size != current_size) or xmax >= axmax or ymin <= aymin or ymax >= aymax:
+            if DEBUG: 
+                print "redraw"
+                print len(self.axes.get_lines())
             self.old_size = current_size
             self.axes.clear()
             self.axes.grid()
-            self.axes.set_xlim(xmin,xmax)
-            self.axes.set_ylim(ymin,ymax)
+            self.axes.set_xlim(xmin,xmax*1.1)
+            self.axes.set_ylim(ymin,ymax*1.1)
             self.axes.set_xlabel("time / s")
             self.axes.set_ylabel("signal / a.u.")
-            self.real_part, = self.axes.plot(new_t, new_real, marker='None', ls="-", color='r', label = "Real")
-            self.imag_part, = self.axes.plot(new_t, new_imag, marker='None', ls="-", color='b', label = "Imag")
-            self.axes.legend()
-            # redraw the whole figure
-            self.draw()
+            # add a real/imag line
+            self.real_part, = self.axes.plot(new_t, new_real, marker="", ls="-", color='r', label = "Real", animated=True)
+            self.imag_part, = self.axes.plot(new_t, new_imag, marker="", ls="-", color='b', label = "Imag", animated=True)
             self.axes_background = self.copy_from_bbox(self.axes.bbox)
-        else:
-            self.restore_region(self.axes_background)
-            # update the data
-            self.real_part.set_xdata(new_t)
-            self.real_part.set_ydata(new_real)
-            self.imag_part.set_xdata(new_t)
-            self.imag_part.set_ydata(new_imag)
-            # just draw the animated artist
-            for line in [self.real_part, self.imag_part]:
-                self.axes.draw_artist(line)
-            self.blit(self.axes.bbox)
+            self.draw()
+        self.restore_region(self.axes_background)
+        # update the data
+        self.real_part.set_ydata(new_real)
+        self.real_part.set_xdata(new_t)
+        self.imag_part.set_ydata(new_imag)
+        self.imag_part.set_xdata(new_t)
+        self.axes.legend()
+        # just draw the animated artist
+        for line in [self.real_part, self.imag_part]:
+            self.axes.draw_artist(line)
+        self.blit(self.axes.bbox)
     
 
 if __name__ == "__main__":
