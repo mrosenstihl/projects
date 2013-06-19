@@ -1,9 +1,0 @@
-Module for saving matplotlib created figures as xmgrace file.
-Usage:
-
-import saveagr
-
-mpl.plot(x,y)
-...
-a = saveagr.SaveAGR()
-a.saveagr('filename')

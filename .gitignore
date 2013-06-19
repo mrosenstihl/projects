@@ -2,3 +2,8 @@
 test-sse2-M*
 test-std-M*
 *.dSYM
+<<<<<<< HEAD
+=======
+*.pyc
+*.log
+>>>>>>> 2a351bdde18532ae4fc98b068f87f0df0cba283a
