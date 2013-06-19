@@ -1,0 +1,4 @@
+.DS_Store
+test-sse2-M*
+test-std-M*
+*.dSYM
