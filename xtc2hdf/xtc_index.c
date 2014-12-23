@@ -15,18 +15,8 @@
 #include <stdbool.h> 
 #include <stdint.h> 
 
-/*
- * int8_t
- * int16_t
- * int32_t
- * uint8_t
- * uint16_t
- * uint32_t[Option End]
- *
- */
-
-#include "xtcio.h"
 #include "math.h"
+#include "gromacs/xtcio.h"
 
 int main(int argc, char *argv[]){	
 	/* 

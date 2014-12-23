@@ -13,7 +13,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h> 
-#include <stdint.h> 
+#include <inttypes.h>
 
 /*
  * int8_t
@@ -80,7 +80,7 @@ int main(int argc, char *argv[]){
     // this holds our maximum frame number
     uint64_t max_frame = 0;
     uint64_t i = 0;
-    while(fscanf(fp_index, "%lli %llx\n", &a_frame, &a_fpos)==2){
+    while(fscanf(fp_index, "%" SCNu64 "%" SCNx64 "\n", &a_frame, &a_fpos)==2){
         // check maxmimum frame number
         if (a_frame > max_frame) max_frame = a_frame;
         // increase array size if necessary
@@ -91,21 +91,21 @@ int main(int argc, char *argv[]){
         // store frame position
         fseekpos[a_frame] = a_fpos;
         i++;
-        printf("%lli %lli\n", a_frame, a_fpos);
+        printf("%" PRIu64 "%" PRIx64 "\n", a_frame, a_fpos);
     }
     fclose(fp_index);
     number_of_indexes = i;
     // fix array size
     fseekpos = (uint64_t*) realloc(fseekpos, number_of_indexes*sizeof(uint64_t));
 
-    /* Open xtc file, read xtc file first time, allocate memory for x */
+        /* Open xtc file, read xtc file first time, allocate memory for x */
     read_first_xtc(xtc, &natoms, &step, &time, box, &x, &prec, &bOK);
 
     for (int nframe=0; nframe <= 10000; nframe +=10){
         int frame = rand()%10000;
         //select frame and read it
         gmx_fio_seek(xtc, fseekpos[frame]);
-        printf("%i: %f %f %f\n",step,x[3800][0], x[3800][1], x[3800][2]);
+        printf("%i: %f %f %f\n",step, x[3800][0], x[3800][1], x[3800][2]);
         read_next_xtc(xtc, natoms, &step, &time, box, x, &prec, &bOK);
     }
 	
